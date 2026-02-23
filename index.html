@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jedburgh Jigsaw Competition — Question 10 Simulator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Sora:wght@300;400;600;700&display=swap');
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1e2530;
+    --border: #30363d;
+    --accent: #f0a500;
+    --accent2: #e05c5c;
+    --green: #3fb950;
+    --red: #f85149;
+    --blue: #58a6ff;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --code-bg: #0d1117;
+    --radius: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: linear-gradient(135deg, #1a1f2e 0%, #0d1117 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 24px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-left { display: flex; align-items: center; gap: 16px; }
+  .jigsaw-icon { font-size: 32px; animation: rotate 20s linear infinite; }
+  @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .header h1 {
+    font-family: 'Space Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+  }
+  .header p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* ── SCORE BAR ── */
+  .score-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 40px;
+    padding: 8px 20px;
+  }
+  .score-label { font-size: 12px; color: var(--muted); font-family: 'Space Mono', monospace; }
+  .score-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent);
+    min-width: 60px;
+    text-align: right;
+  }
+  .score-track {
+    width: 120px;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .score-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--green));
+    border-radius: 3px;
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* ── LAYOUT ── */
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  /* ── SECTION DIVIDER ── */
+  .section-banner {
+    background: linear-gradient(90deg, rgba(240,165,0,0.15), transparent);
+    border-left: 3px solid var(--accent);
+    padding: 12px 20px;
+    margin: 48px 0 24px;
+    border-radius: 0 var(--radius) var(--radius) 0;
+  }
+  .section-banner h2 {
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .section-banner p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  /* ── QUESTION CARD ── */
+  .q-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 24px;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+  .q-card.answered { border-color: rgba(63,185,80,0.4); }
+  .q-card.wrong { border-color: rgba(248,81,73,0.4); }
+
+  .q-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+  }
+  .q-header:hover { background: #252d3a; }
+  .q-tag {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    background: rgba(240,165,0,0.15);
+    color: var(--accent);
+    border: 1px solid rgba(240,165,0,0.3);
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+  .q-title { font-size: 14px; font-weight: 600; flex: 1; }
+  .q-marks {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-left: 12px;
+  }
+  .q-status { font-size: 18px; margin-left: 8px; width: 24px; text-align: center; }
+  .q-chevron { color: var(--muted); transition: transform 0.3s; font-size: 12px; margin-left: 8px; }
+  .q-card.open .q-chevron { transform: rotate(180deg); }
+
+  .q-body { display: none; padding: 24px; }
+  .q-card.open .q-body { display: block; }
+
+  /* ── CONTEXT BOX ── */
+  .context {
+    background: rgba(88,166,255,0.06);
+    border: 1px solid rgba(88,166,255,0.2);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: #cdd9e5;
+    line-height: 1.7;
+  }
+  .context strong { color: var(--blue); }
+
+  /* ── WIREFRAME ── */
+  .wireframe {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin: 12px 0 20px;
+    background: #111518;
+    font-size: 13px;
+  }
+  .wireframe-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+  }
+  .wf-box {
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 16px;
+    background: #1a1f28;
+  }
+  .wf-heading { font-weight: 700; text-align: center; font-size: 16px; margin-bottom: 12px; }
+  .wf-para { margin-bottom: 8px; font-size: 13px; }
+  .wf-highlight { background: rgba(240,165,0,0.2); border: 1px solid rgba(240,165,0,0.4); padding: 1px 4px; border-radius: 3px; }
+  .wf-btn {
+    display: block;
+    width: 160px;
+    text-align: center;
+    margin: 12px auto 0;
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* ── CODE DISPLAY ── */
+  .code-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    line-height: 1.8;
+    color: #e6edf3;
+    margin: 12px 0;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .code-block .kw { color: #ff7b72; }
+  .code-block .str { color: #a5d6ff; }
+  .code-block .fn { color: #d2a8ff; }
+  .code-block .cmt { color: #6e7681; font-style: italic; }
+  .code-block .blank { 
+    background: rgba(240,165,0,0.15); 
+    border: 1px dashed rgba(240,165,0,0.5); 
+    padding: 0 8px; 
+    border-radius: 3px; 
+    color: var(--accent);
+  }
+
+  /* ── EDITOR ── */
+  .editor-wrap { position: relative; margin: 16px 0; }
+  .editor-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .editor-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+
+  textarea.code-editor {
+    width: 100%;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    line-height: 1.8;
+    color: var(--text);
+    resize: vertical;
+    min-height: 100px;
+    outline: none;
+    transition: border-color 0.2s;
+    tab-size: 2;
+  }
+  textarea.code-editor:focus { border-color: var(--accent); }
+
+  /* ── SIMULATION OUTPUT ── */
+  .sim-panel {
+    background: #0a0d10;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-top: 16px;
+  }
+  .sim-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: #111418;
+    border-bottom: 1px solid var(--border);
+  }
+  .sim-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .sim-dot.red { background: #ff5f57; }
+  .sim-dot.yellow { background: #febc2e; }
+  .sim-dot.green { background: #28c840; }
+  .sim-title { font-size: 11px; color: var(--muted); font-family: 'Space Mono', monospace; margin-left: 8px; }
+  .sim-body { padding: 16px; min-height: 80px; font-family: 'Space Mono', monospace; font-size: 12px; line-height: 1.8; }
+  .sim-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .sim-table th { background: var(--surface2); padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); color: var(--accent); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .sim-table td { padding: 8px 12px; border-bottom: 1px solid rgba(48,54,61,0.5); }
+  .sim-table tr:last-child td { border-bottom: none; }
+  .sim-table .pts-8 { color: var(--accent); font-weight: 700; }
+  .sim-table .pts-5 { color: #c2a500; }
+  .sim-table .pts-3 { color: var(--blue); }
+  .sim-table .pts-1 { color: var(--muted); }
+  .sim-error { color: var(--red); }
+  .sim-success { color: var(--green); }
+
+  /* ── INPUT FIELDS ── */
+  .input-row { display: flex; gap: 12px; margin: 12px 0; flex-wrap: wrap; }
+  .input-group { flex: 1; min-width: 180px; }
+  .input-group label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px; font-family: 'Space Mono', monospace; }
+  .input-group input, .input-group select {
+    width: 100%;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .input-group input:focus, .input-group select:focus { border-color: var(--accent); }
+  .input-group input.correct { border-color: var(--green); background: rgba(63,185,80,0.05); }
+  .input-group input.incorrect { border-color: var(--red); background: rgba(248,81,73,0.05); }
+
+  /* ── BUTTONS ── */
+  .btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .btn {
+    padding: 10px 20px;
+    border-radius: var(--radius);
+    border: none;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-primary:hover { background: #ffb700; transform: translateY(-1px); }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-run { background: linear-gradient(135deg, #1e4d2b, #0f6e31); color: var(--green); border: 1px solid rgba(63,185,80,0.4); }
+  .btn-run:hover { background: linear-gradient(135deg, #255c34, #13813a); }
+
+  /* ── FEEDBACK ── */
+  .feedback {
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    margin-top: 16px;
+    font-size: 13px;
+    display: none;
+    animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+  .feedback.show { display: block; }
+  .feedback.correct { background: rgba(63,185,80,0.1); border: 1px solid rgba(63,185,80,0.3); color: #7ee787; }
+  .feedback.partial { background: rgba(240,165,0,0.1); border: 1px solid rgba(240,165,0,0.3); color: #f0c060; }
+  .feedback.wrong { background: rgba(248,81,73,0.1); border: 1px solid rgba(248,81,73,0.3); color: #ff8080; }
+  .feedback-title { font-weight: 700; font-family: 'Space Mono', monospace; font-size: 12px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .model-answer {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px;
+    margin-top: 10px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: #c9d1d9;
+    white-space: pre-wrap;
+  }
+
+  /* ── CHECKLIST ── */
+  .checklist { list-style: none; margin: 8px 0; }
+  .checklist li { 
+    padding: 5px 0; 
+    font-size: 13px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    color: var(--muted);
+  }
+  .checklist li.hit { color: var(--green); }
+  .checklist li.miss { color: var(--red); }
+  .checklist .ci { flex-shrink: 0; margin-top: 2px; }
+
+  /* ── TEXTAREA ROWS ── */
+  .text-answer {
+    width: 100%;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    font-family: 'Sora', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    resize: vertical;
+    min-height: 80px;
+    outline: none;
+    transition: border-color 0.2s;
+    line-height: 1.7;
+  }
+  .text-answer:focus { border-color: var(--accent); }
+
+  /* ── HINT ── */
+  .hint-toggle {
+    font-size: 12px;
+    color: var(--blue);
+    cursor: pointer;
+    border: none;
+    background: none;
+    padding: 0;
+    margin-top: 8px;
+    font-family: 'Space Mono', monospace;
+    text-decoration: underline;
+  }
+  .hint-box {
+    background: rgba(88,166,255,0.07);
+    border: 1px solid rgba(88,166,255,0.2);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: #8ab4d4;
+    display: none;
+  }
+  .hint-box.show { display: block; }
+
+  /* ── DB CONNECTION SIM ── */
+  .db-panel {
+    background: #080c10;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin: 16px 0;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+  }
+  .db-panel .db-status { margin-bottom: 12px; }
+  .db-field { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .db-field span { color: var(--muted); min-width: 80px; }
+  .db-field .val { color: var(--green); }
+  .db-field .val.bad { color: var(--red); }
+  .db-connecting { color: var(--accent); animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .db-connected { color: var(--green); }
+  .db-failed { color: var(--red); }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* ── INTRO ── */
+  .intro {
+    background: linear-gradient(135deg, var(--surface) 0%, #131920 100%);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    margin-bottom: 40px;
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+  }
+  .intro-icon { font-size: 40px; flex-shrink: 0; }
+  .intro h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+  .intro p { font-size: 14px; color: var(--muted); line-height: 1.7; }
+  .tag-strip { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .tag { font-family: 'Space Mono', monospace; font-size: 10px; padding: 3px 10px; border-radius: 20px; border: 1px solid; }
+  .tag.blue { color: var(--blue); border-color: rgba(88,166,255,0.3); background: rgba(88,166,255,0.07); }
+  .tag.green { color: var(--green); border-color: rgba(63,185,80,0.3); background: rgba(63,185,80,0.07); }
+  .tag.amber { color: var(--accent); border-color: rgba(240,165,0,0.3); background: rgba(240,165,0,0.07); }
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header class="header">
+  <div class="header-left">
+    <div class="jigsaw-icon">🧩</div>
+    <div>
+      <h1>Jedburgh Jigsaw Competition</h1>
+      <p>AH Computing Science 2025 · Question 10 Interactive Simulator</p>
+    </div>
+  </div>
+  <div class="score-bar">
+    <span class="score-label">MARKS</span>
+    <span class="score-value" id="scoreDisplay">0/14</span>
+    <div class="score-track">
+      <div class="score-fill" id="scoreFill" style="width:0%"></div>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- INTRO -->
+  <div class="intro">
+    <div class="intro-icon">📋</div>
+    <div>
+      <h2>Question 10 — Jedburgh Jigsaw Competition Website</h2>
+      <p>You are developing a database-driven website for the Jedburgh Jigsaw Competition. Work through each part below. Enter your answers in the editors, click <strong>Submit</strong> to check your work, and use <strong>Run</strong> buttons to see a live simulation of how your code would behave.</p>
+      <div class="tag-strip">
+        <span class="tag blue">PHP</span>
+        <span class="tag blue">SQL</span>
+        <span class="tag green">Sessions</span>
+        <span class="tag amber">Database-driven</span>
+        <span class="tag blue">14 marks total</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SECTION A — Sessions
+  ══════════════════════════════════════════ -->
+  <div class="section-banner">
+    <h2>Part (a) — Registration & Sessions</h2>
+    <p>Competitors register on signup.html, which submits to confirmation.php, then saveDetails.php</p>
+  </div>
+
+  <!-- Q10a(i) Sessions -->
+  <div class="q-card open" id="q-ai">
+    <div class="q-header" onclick="toggleCard('q-ai')">
+      <span class="q-tag">10(a)(i)</span>
+      <span class="q-title">Explain how sessions and session variables would be used</span>
+      <span class="q-marks">3 marks</span>
+      <span class="q-status" id="status-ai">○</span>
+      <span class="q-chevron">▼</span>
+    </div>
+    <div class="q-body">
+      <div class="context">
+        <strong>Context:</strong> Competitors fill in a sign-up form on <code>signup.html</code>. This data is submitted to <code>confirmation.php</code> which shows their name and email. They then click a button to go to <code>saveDetails.php</code> which writes to the database. HTTP is stateless — data entered on one page is not automatically available on the next.
+      </div>
+      
+      <div class="wireframe">
+        <div class="wireframe-title">Wireframe — confirmation.php</div>
+        <div class="wf-box">
+          <div class="wf-heading">Jedburgh Jigsaw Competition</div>
+          <div class="wf-para"><span class="wf-highlight">babJones@mymail.com</span> thanks for your enquiry</div>
+          <div class="wf-para">Dear <span class="wf-highlight">Barbara</span></div>
+          <div class="wf-para">You are registering for the 2025 Jedburgh Jigsaw Competition.</div>
+          <div class="wf-para">Please click below to confirm your registration.</div>
+          <div class="wf-btn">click to confirm registration</div>
+        </div>
+      </div>
+
+      <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">Explain the role of sessions across <em>all three pages</em> (signup.html → confirmation.php → saveDetails.php):</p>
+
+      <textarea class="text-answer" id="ans-ai" rows="5" placeholder="Describe how sessions are started, how session variables store the form data, and how they are accessed on subsequent pages..."></textarea>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="checkAi()">Submit Answer</button>
+        <button class="hint-toggle" onclick="toggleHint('hint-ai')">💡 Show hint</button>
+      </div>
+      <div class="hint-box" id="hint-ai">Think about: <strong>session_start()</strong>, storing variables like <code>$_SESSION['forename']</code>, and how confirmation.php reads them to display "Dear Barbara".</div>
+      <div class="feedback" id="fb-ai"></div>
+    </div>
+  </div>
+
+  <!-- Q10a(ii) DB Connection -->
+  <div class="q-card" id="q-aii">
+    <div class="q-header" onclick="toggleCard('q-aii')">
+      <span class="q-tag">10(a)(ii)</span>
+      <span class="q-title">Write PHP code to connect to the database</span>
+      <span class="q-marks">2 marks</span>
+      <span class="q-status" id="status-aii">○</span>
+      <span class="q-chevron">▼</span>
+    </div>
+    <div class="q-body">
+      <div class="context">
+        <strong>Connection details you must use:</strong><br>
+        Database: <code>jigsawFixture</code> &nbsp;|&nbsp; Password: <code>pass1234</code> &nbsp;|&nbsp; Server: <code>jigsaw1</code> &nbsp;|&nbsp; User: <code>admin</code><br><br>
+        Assign the connection to the variable <code>$link</code>.
+      </div>
+
+      <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">Complete the connection details below, then write your PHP code:</p>
+
+      <div class="input-row">
+        <div class="input-group">
+          <label>$server</label>
+          <input type="text" id="db-server" placeholder="e.g. localhost" oninput="updateDbSim()">
+        </div>
+        <div class="input-group">
+          <label>$user</label>
+          <input type="text" id="db-user" placeholder="username" oninput="updateDbSim()">
+        </div>
+        <div class="input-group">
+          <label>$password</label>
+          <input type="text" id="db-password" placeholder="password" oninput="updateDbSim()">
+        </div>
+        <div class="input-group">
+          <label>$database</label>
+          <input type="text" id="db-name" placeholder="database name" oninput="updateDbSim()">
+        </div>
+      </div>
+
+      <div class="editor-wrap">
+        <div class="editor-label"><div class="editor-dot"></div>PHP Editor</div>
+        <textarea class="code-editor" id="ans-aii" rows="4" placeholder="$link = mysqli_connect(...);" oninput="updateDbSim()"></textarea>
+      </div>
+
+      <div class="db-panel" id="db-sim">
+        <div class="db-status" id="db-status">⬤ &nbsp;<span style="color:var(--muted)">Awaiting connection attempt...</span></div>
+        <div id="db-details"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-run" onclick="runDbConnect()">▶ Run Connection</button>
+        <button class="btn btn-primary" onclick="checkAii()">Submit Answer</button>
+        <button class="hint-toggle" onclick="toggleHint('hint-aii')">💡 Show hint</button>
+      </div>
+      <div class="hint-box" id="hint-aii">Use <code>mysqli_connect(server, user, password, database)</code> and assign to <code>$link</code>.</div>
+      <div class="feedback" id="fb-aii"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SECTION B — Results Processing
+  ══════════════════════════════════════════ -->
+  <div class="section-banner">
+    <h2>Part (b) — Processing Round 1 Results</h2>
+    <p>Points are awarded based on finishing position. The code loops through ordered results and allocates points.</p>
+  </div>
+
+  <!-- Q10b(i) SQL query significance -->
+  <div class="q-card" id="q-bi">
+    <div class="q-header" onclick="toggleCard('q-bi')">
+      <span class="q-tag">10(b)(i)</span>
+      <span class="q-title">Explain the significance of the SQL query at line 37</span>
+      <span class="q-marks">1 mark</span>
+      <span class="q-status" id="status-bi">○</span>
+      <span class="q-chevron">▼</span>
+    </div>
+    <div class="q-body">
+      <div class="code-block"><span class="kw">Line 37</span>  $query = <span class="str">"SELECT competitorID, forename, surname, 
+          timeTakenRound1 FROM Competitor ORDER BY
+          timeTakenRound1 ASC"</span>;</div>
+
+      <textarea class="text-answer" id="ans-bi" rows="3" placeholder="Explain why this query is significant to the points allocation process..."></textarea>
+      
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="checkBi()">Submit Answer</button>
+        <button class="hint-toggle" onclick="toggleHint('hint-bi')">💡 Show hint</button>
+      </div>
+      <div class="hint-box" id="hint-bi">Focus on the <code>ORDER BY timeTakenRound1 ASC</code> — what does sorting ascending do to the results, and why does that matter for awarding points?</div>
+      <div class="feedback" id="fb-bi"></div>
+    </div>
+  </div>
+
+  <!-- Q10b(ii) While loop condition -->
+  <div class="q-card" id="q-bii">
+    <div class="q-header" onclick="toggleCard('q-bii')">
+      <span class="q-tag">10(b)(ii)</span>
+      <span class="q-title">Explain how the complex condition at line 48 controls the while loop</span>
+      <span class="q-marks">2 marks</span>
+      <span class="q-status" id="status-bii">○</span>
+      <span class="q-chevron">▼</span>
+    </div>
+    <div class="q-body">
+      <div class="code-block"><span class="kw">Line 48</span>  <span class="kw">while</span> (($row = <span class="fn">mysqli_fetch_array</span>($round1)) <span class="kw">and</span>
+          $numProcessed &lt; 24)</div>
+      
+      <p style="font-size:13px;color:var(--muted);margin:12px 0;">There are <strong>two</strong> conditions joined by <code>and</code>. Explain the role of each condition:</p>
+
+      <div style="margin-bottom:10px;">
+        <label style="font-size:12px;color:var(--muted);font-family:'Space Mono',monospace;display:block;margin-bottom:6px;">Condition 1: <code>$row = mysqli_fetch_array($round1)</code></label>
+        <textarea class="text-answer" id="ans-bii-1" rows="2" placeholder="What does this condition do? When does it become false?"></textarea>
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--muted);font-family:'Space Mono',monospace;display:block;margin-bottom:6px;">Condition 2: <code>$numProcessed &lt; 24</code></label>
+        <textarea class="text-answer" id="ans-bii-2" rows="2" placeholder="Why 24? What competitors does this ensure are processed?"></textarea>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="checkBii()">Submit Answer</button>
+        <button class="hint-toggle" onclick="toggleHint('hint-bii')">💡 Show hint</button>
+      </div>
+      <div class="hint-box" id="hint-bii">Points are awarded to: 1st (8pts) + 2nd (5pts) + 3rd (3pts) + next 21 (1pt each) = 24 competitors total. The loop stops when either all rows are fetched OR 24 have been processed.</div>
+      <div class="feedback" id="fb-bii"></div>
+    </div>
+  </div>
+
+  <!-- Q10b(iii) Points allocation pseudocode -->
+  <div class="q-card" id="q-biii">
+    <div class="q-header" onclick="toggleCard('q-biii')">
+      <span class="q-tag">10(b)(iii)</span>
+      <span class="q-title">Design pseudocode to allocate points to competitors</span>
+      <span class="q-marks">2 marks</span>
+      <span class="q-status" id="status-biii">○</span>
+      <span class="q-chevron">▼</span>
+    </div>
+    <div class="q-body">
+      <div class="context">
+        <strong>Points system:</strong><br>
+        1st place → <strong style="color:var(--accent)">8 points</strong> &nbsp;|&nbsp; 
+        2nd place → <strong style="color:#c2a500">5 points</strong> &nbsp;|&nbsp; 
+        3rd place → <strong style="color:var(--blue)">3 points</strong> &nbsp;|&nbsp; 
+        4th–24th → <strong style="color:var(--muted)">1 point</strong><br>
+        The variable <code>$numProcessed</code> tracks position (0-indexed). Update the variable <code>$points</code>.
+      </div>
+
+      <div class="editor-wrap">
+        <div class="editor-label"><div class="editor-dot"></div>Pseudocode Editor</div>
+        <textarea class="code-editor" id="ans-biii" rows="10" placeholder="IF $numProcessed = 0 THEN&#10;    SET $points TO ...&#10;ELSE IF ...&#10;    ...&#10;END IF"></textarea>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-run" onclick="runPointsSim()">▶ Simulate Points Allocation</button>
+        <button class="btn btn-primary" onclick="checkBiii()">Submit Answer</button>
+        <button class="hint-toggle" onclick="toggleHint('hint-biii')">💡 Show hint</button>
+      </div>
+      <div class="hint-box" id="hint-biii">Remember: <code>$numProcessed</code> starts at 0 and increments after each competitor. So position 1 = <code>$numProcessed == 0</code>, position 2 = <code>$numProcessed == 1</code>, etc. You need 4 cases.</div>
+
+      <div class="sim-panel" id="pts-sim" style="display:none">
+        <div class="sim-header">
+          <div class="sim-dot red"></div><div class="sim-dot yellow"></div><div class="sim-dot green"></div>
+          <span class="sim-title">Points Allocation — Simulation</span>
+        </div>
+        <div class="sim-body" id="pts-sim-body"></div>
+      </div>
+      <div class="feedback" id="fb-biii"></div>
+    </div>
+  </div>
+
+  <!-- Q10b(iv) PHP HTML table row -->
+  <div class="q-card" id="q-biv">
+    <div class="q-header" onclick="toggleCard('q-biv')">
+      <span class="q-tag">10(b)(iv)</span>
+      <span class="q-title">Write PHP to display a competitor's details in one table row</span>
+      <span class="q-marks">2 marks</span>
+      <span class="q-status" id="status-biv">○</span>
+      <span class="q-chevron">▼</span>
+    </div>
+    <div class="q-body">
+      <div class="context">
+        <strong>Target output:</strong> Each table row should show the competitor's full name (forename + surname), time taken, and points. The <code>$row</code> array has keys: <code>forename</code>, <code>surname</code>, <code>timeTakenRound1</code>. The variable <code>$points</code> holds the points for this competitor.
+      </div>
+
+      <p style="font-size:13px;color:var(--muted);margin-bottom:8px;">Expected table output:</p>
+      <div class="sim-panel">
+        <div class="sim-header">
+          <div class="sim-dot red"></div><div class="sim-dot yellow"></div><div class="sim-dot green"></div>
+          <span class="sim-title">Round 1 Results</span>
+        </div>
+        <div class="sim-body" style="padding:0">
+          <table class="sim-table">
+            <thead><tr><th>Competitor</th><th>Time Taken</th><th>Points</th></tr></thead>
+            <tbody>
+              <tr><td>Barbara Jones</td><td>02:32:24</td><td class="pts-8">8</td></tr>
+              <tr><td>Olive Oil</td><td>02:38:38</td><td class="pts-5">5</td></tr>
+              <tr><td>David Defau</td><td>02:39:58</td><td class="pts-3">3</td></tr>
+              <tr><td>Andy Peters</td><td>02:40:30</td><td class="pts-1">1</td></tr>
+              <tr><td>Lin Cadiz</td><td>02:41:19</td><td class="pts-1">1</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="editor-wrap" style="margin-top:20px">
+        <div class="editor-label"><div class="editor-dot"></div>PHP Editor — Line 63</div>
+        <textarea class="code-editor" id="ans-biv" rows="5" placeholder="echo &quot;&lt;tr&gt;&lt;td&gt;&quot; . $row[&#39;forename&#39;] . ..."></textarea>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-run" onclick="runTableSim()">▶ Preview Output</button>
+        <button class="btn btn-primary" onclick="checkBiv()">Submit Answer</button>
+        <button class="hint-toggle" onclick="toggleHint('hint-biv')">💡 Show hint</button>
+      </div>
+      <div class="hint-box" id="hint-biv">You need one <code>&lt;tr&gt;</code> with three <code>&lt;td&gt;</code> cells. Concatenate <code>$row['forename']</code> and <code>$row['surname']</code> with a space for the name column.</div>
+
+      <div class="sim-panel" id="table-sim" style="display:none">
+        <div class="sim-header">
+          <div class="sim-dot red"></div><div class="sim-dot yellow"></div><div class="sim-dot green"></div>
+          <span class="sim-title">Rendered Output (first row)</span>
+        </div>
+        <div class="sim-body" id="table-sim-body" style="padding:0"></div>
+      </div>
+      <div class="feedback" id="fb-biv"></div>
+    </div>
+  </div>
+
+  <!-- Q10b(v) UPDATE query -->
+  <div class="q-card" id="q-bv">
+    <div class="q-header" onclick="toggleCard('q-bv')">
+      <span class="q-tag">10(b)(v)</span>
+      <span class="q-title">Write the SQL UPDATE statement for line 65</span>
+      <span class="q-marks">1 mark</span>
+      <span class="q-status" id="status-bv">○</span>
+      <span class="q-chevron">▼</span>
+    </div>
+    <div class="q-body">
+      <div class="context">
+        The incomplete code at line 65 is:<br><br>
+        <code>mysqli_query($link, "<span style="color:var(--accent)">__________________</span> WHERE competitorID = '$row[competitorID]'");</code><br><br>
+        Write the missing SQL statement to update the <code>competitorPoints</code> field for this competitor with the value in <code>$points</code>.
+      </div>
+
+      <div class="editor-wrap">
+        <div class="editor-label"><div class="editor-dot"></div>SQL Statement (the part before WHERE)</div>
+        <textarea class="code-editor" id="ans-bv" rows="3" placeholder="UPDATE Competitor SET ..."></textarea>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-run" onclick="runUpdateSim()">▶ Simulate Query</button>
+        <button class="btn btn-primary" onclick="checkBv()">Submit Answer</button>
+        <button class="hint-toggle" onclick="toggleHint('hint-bv')">💡 Show hint</button>
+      </div>
+      <div class="hint-box" id="hint-bv">Use <code>UPDATE tableName SET fieldName = '$variable'</code>. Remember to include the <code>$points</code> variable and that the full query already has the WHERE clause.</div>
+
+      <div class="sim-panel" id="update-sim" style="display:none">
+        <div class="sim-header">
+          <div class="sim-dot red"></div><div class="sim-dot yellow"></div><div class="sim-dot green"></div>
+          <span class="sim-title">Database Update — Simulation</span>
+        </div>
+        <div class="sim-body" id="update-sim-body"></div>
+      </div>
+      <div class="feedback" id="fb-bv"></div>
+    </div>
+  </div>
+
+  <!-- Final score summary (shows after all answered) -->
+  <div id="final-summary" style="display:none; margin-top:40px;">
+    <div style="background: linear-gradient(135deg, rgba(240,165,0,0.15), rgba(63,185,80,0.1)); border:1px solid rgba(240,165,0,0.4); border-radius:12px; padding:32px; text-align:center;">
+      <div style="font-size:48px; margin-bottom:12px;">🏆</div>
+      <h2 style="font-family:'Space Mono',monospace; font-size:24px; color:var(--accent); margin-bottom:8px;">Question Complete!</h2>
+      <p style="color:var(--muted); font-size:15px;">Final score: <span id="final-score" style="color:var(--text); font-weight:700;"></span></p>
+      <button class="btn btn-secondary" onclick="resetAll()" style="margin-top:16px;">↺ Reset All Answers</button>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+// ── STATE ──────────────────────────────────────────────
+const MAX_MARKS = 14;
+const marks = { ai: 0, aii: 0, bi: 0, bii: 0, biii: 0, biv: 0, bv: 0 };
+const maxMarks = { ai: 3, aii: 2, bi: 1, bii: 2, biii: 2, biv: 2, bv: 1 };
+let totalScore = 0;
+
+// ── COMPETITOR DATA ────────────────────────────────────
+const competitors = [
+  { id: 1, forename: 'Barbara', surname: 'Jones',    time: '02:32:24', timeSecs: 9144 },
+  { id: 2, forename: 'Olive',   surname: 'Oil',      time: '02:38:38', timeSecs: 9518 },
+  { id: 3, forename: 'David',   surname: 'Defau',    time: '02:39:58', timeSecs: 9598 },
+  { id: 4, forename: 'Andy',    surname: 'Peters',   time: '02:40:30', timeSecs: 9630 },
+  { id: 5, forename: 'Lin',     surname: 'Cadiz',    time: '02:41:19', timeSecs: 9679 },
+  { id: 6, forename: 'Sarah',   surname: 'McKenzie', time: '02:43:05', timeSecs: 9785 },
+  { id: 7, forename: 'Tom',     surname: 'Brannigan',time: '02:44:12', timeSecs: 9852 },
+];
+
+// ── TOGGLE CARD ────────────────────────────────────────
+function toggleCard(id) {
+  const card = document.getElementById(id);
+  card.classList.toggle('open');
+}
+
+// ── TOGGLE HINT ────────────────────────────────────────
+function toggleHint(id) {
+  const box = document.getElementById(id);
+  box.classList.toggle('show');
+}
+
+// ── SCORE UPDATE ────────────────────────────────────────
+function updateScore() {
+  totalScore = Object.values(marks).reduce((a,b) => a+b, 0);
+  document.getElementById('scoreDisplay').textContent = totalScore + '/' + MAX_MARKS;
+  const pct = (totalScore / MAX_MARKS) * 100;
+  document.getElementById('scoreFill').style.width = pct + '%';
+  
+  const answered = Object.keys(marks).filter(k => marks[k] > 0).length;
+  if (answered === Object.keys(marks).length && totalScore > 0) {
+    document.getElementById('final-summary').style.display = 'block';
+    document.getElementById('final-score').textContent = totalScore + ' / ' + MAX_MARKS + ' marks';
+  }
+}
+
+function setMark(q, score, max) {
+  marks[q] = score;
+  const card = document.getElementById('q-' + q);
+  const status = document.getElementById('status-' + q);
+  if (score === max) { card.classList.add('answered'); card.classList.remove('wrong'); status.textContent = '✅'; }
+  else if (score > 0) { card.classList.add('answered'); card.classList.remove('wrong'); status.textContent = '⚠️'; }
+  else { card.classList.add('wrong'); card.classList.remove('answered'); status.textContent = '❌'; }
+  updateScore();
+}
+
+function showFeedback(id, type, title, body, model) {
+  const fb = document.getElementById('fb-' + id);
+  fb.className = 'feedback show ' + type;
+  fb.innerHTML = `<div class="feedback-title">${type === 'correct' ? '✅' : type === 'partial' ? '⚠️' : '❌'} ${title}</div>${body}`;
+  if (model) fb.innerHTML += `<div class="model-answer">${model}</div>`;
+}
+
+// ── Q10a(i) Sessions ────────────────────────────────────
+function checkAi() {
+  const ans = document.getElementById('ans-ai').value.toLowerCase();
+  const checks = [
+    { text: 'session_start() called', hit: /session_start|start.*session/.test(ans) },
+    { text: 'Session variables store form data (e.g. forename, email)', hit: /\$_session|session variable|session\[/.test(ans) },
+    { text: 'confirmation.php reads session variables to display name/email', hit: /confirmation|display|read|access/.test(ans) },
+    { text: 'saveDetails.php uses session data to write to database', hit: /save|database|store|write|savedetails/.test(ans) },
+  ];
+  const hits = checks.filter(c => c.hit).length;
+  const score = Math.min(3, hits);
+  setMark('ai', score, 3);
+  
+  const listItems = checks.map(c => 
+    `<li class="${c.hit ? 'hit' : 'miss'}"><span class="ci">${c.hit ? '✓' : '✗'}</span> ${c.text}</li>`
+  ).join('');
+  
+  const type = score >= 3 ? 'correct' : score >= 1 ? 'partial' : 'wrong';
+  const model = `session_start() is called at the top of each PHP page.
+
+On confirmation.php, session variables are created from the submitted form data:
+  $_SESSION['forename'] = $_POST['forename'];
+  $_SESSION['email']    = $_POST['email'];
+
+confirmation.php reads these to display: "Dear Barbara" and the email address.
+
+When the user clicks confirm, saveDetails.php is activated.
+session_start() is called again and $_SESSION variables are read
+to insert the competitor's details into the database.`;
+  
+  showFeedback('ai', type, `${score}/3 marks`, `<ul class="checklist">${listItems}</ul>`, score < 3 ? model : null);
+}
+
+// ── Q10a(ii) DB Connection ──────────────────────────────
+function updateDbSim() {
+  // Live visual feedback as they fill in fields
+}
+
+function runDbConnect() {
+  const server = document.getElementById('db-server').value.trim();
+  const user   = document.getElementById('db-user').value.trim();
+  const pass   = document.getElementById('db-password').value.trim();
+  const db     = document.getElementById('db-name').value.trim();
+  const code   = document.getElementById('ans-aii').value.trim();
+  
+  const correct = {
+    server: 'jigsaw1', user: 'admin', pass: 'pass1234', db: 'jigsawFixture'
+  };
+  
+  const statusEl = document.getElementById('db-status');
+  const detailsEl = document.getElementById('db-details');
+  
+  statusEl.innerHTML = '⬤ &nbsp;<span class="db-connecting">Connecting to database server...</span>';
+  detailsEl.innerHTML = '';
+  
+  setTimeout(() => {
+    const allCorrect = server === correct.server && user === correct.user && 
+                       pass === correct.pass && db === correct.db;
+    const hasLink = /\$link\s*=\s*mysqli_connect/.test(code);
+    
+    if (allCorrect && hasLink) {
+      statusEl.innerHTML = '⬤ &nbsp;<span class="db-connected">Connected successfully to jigsawFixture on jigsaw1</span>';
+      detailsEl.innerHTML = `
+        <div class="db-field"><span>Server:</span> <span class="val">jigsaw1</span></div>
+        <div class="db-field"><span>User:</span> <span class="val">admin</span></div>
+        <div class="db-field"><span>Database:</span> <span class="val">jigsawFixture</span></div>
+        <div class="db-field"><span>$link:</span> <span class="val">Resource #1 (mysqli connection)</span></div>`;
+    } else {
+      statusEl.innerHTML = '⬤ &nbsp;<span class="db-failed">Connection failed</span>';
+      let errors = [];
+      if (server !== correct.server) errors.push(`Server: got "${server || '?'}", expected "jigsaw1"`);
+      if (user   !== correct.user)   errors.push(`User: got "${user || '?'}", expected "admin"`);
+      if (pass   !== correct.pass)   errors.push(`Password: got "${pass || '?'}", expected "pass1234"`);
+      if (db     !== correct.db)     errors.push(`Database: got "${db || '?'}", expected "jigsawFixture"`);
+      if (!hasLink)                  errors.push('$link not assigned using mysqli_connect()');
+      detailsEl.innerHTML = errors.map(e => `<div class="db-field"><span class="val bad">✗ ${e}</span></div>`).join('');
+    }
+  }, 800);
+}
+
+function checkAii() {
+  const server = document.getElementById('db-server').value.trim();
+  const user   = document.getElementById('db-user').value.trim();
+  const pass   = document.getElementById('db-password').value.trim();
+  const db     = document.getElementById('db-name').value.trim();
+  const code   = document.getElementById('ans-aii').value.trim();
+  
+  const allFields = server === 'jigsaw1' && user === 'admin' && pass === 'pass1234' && db === 'jigsawFixture';
+  const hasLink   = /\$link\s*=\s*mysqli_connect/.test(code);
+  const hasAll4   = /jigsaw1/.test(code) && /admin/.test(code) && /pass1234/.test(code) && /jigsawFixture/.test(code);
+  
+  let score = 0;
+  let notes = '';
+  if (hasLink && hasAll4) { score = 2; notes = 'Correct mysqli_connect() with all four arguments assigned to $link.'; }
+  else if (hasLink || (allFields && hasAll4)) { score = 1; notes = 'Partial — check all four connection parameters are correct and result is assigned to $link.'; }
+  else { notes = 'Incorrect — use mysqli_connect(server, user, password, database) assigned to $link.'; }
+  
+  setMark('aii', score, 2);
+  const type = score === 2 ? 'correct' : score === 1 ? 'partial' : 'wrong';
+  const model = `$link = mysqli_connect("jigsaw1", "admin", "pass1234", "jigsawFixture");`;
+  showFeedback('aii', type, `${score}/2 marks`, `<p>${notes}</p>`, score < 2 ? model : null);
+}
+
+// ── Q10b(i) SQL significance ────────────────────────────
+function checkBi() {
+  const ans = document.getElementById('ans-bi').value.toLowerCase();
+  const hasSort = /order by|sort|asc|ascending/.test(ans);
+  const hasFastest = /fast|short|small|low|first|best|top|quick/.test(ans);
+  const hasPoints = /point|award|allocat|position/.test(ans);
+  
+  const score = (hasSort && (hasFastest || hasPoints)) ? 1 : 0;
+  setMark('bi', score, 1);
+  
+  const type = score === 1 ? 'correct' : 'wrong';
+  const model = `The query orders (sorts) competitors by timeTakenRound1 in ascending order (ASC), 
+so the fastest times appear first. This is significant because the while loop then 
+processes competitors in order of finishing position, allowing the correct points 
+(8, 5, 3, 1...) to be allocated based on $numProcessed position.`;
+  showFeedback('bi', type, `${score}/1 mark`, '', score < 1 ? model : '<p>✓ Correct — the ascending sort ensures fastest times are processed first, enabling position-based point allocation.</p>');
+}
+
+// ── Q10b(ii) While loop ─────────────────────────────────
+function checkBii() {
+  const ans1 = document.getElementById('ans-bii-1').value.toLowerCase();
+  const ans2 = document.getElementById('ans-bii-2').value.toLowerCase();
+  
+  const c1 = /fetch|row|null|no more|end|result|data|next/.test(ans1);
+  const c2 = /24|top|first|award|point|competi/.test(ans2);
+  
+  const score = (c1 ? 1 : 0) + (c2 ? 1 : 0);
+  setMark('bii', score, 2);
+  
+  const type = score === 2 ? 'correct' : score === 1 ? 'partial' : 'wrong';
+  const model = `Condition 1: ($row = mysqli_fetch_array($round1))
+  Fetches the next row from the results. The loop continues while there are rows 
+  remaining. When no more rows exist, this evaluates to false and the loop ends.
+
+Condition 2: $numProcessed < 24
+  Stops the loop after 24 competitors have been processed (1 gets 8pts, 
+  1 gets 5pts, 1 gets 3pts, 21 get 1pt = 24 total). Remaining competitors 
+  receive no points so do not need to be processed.`;
+  showFeedback('bii', type, `${score}/2 marks`, '', score < 2 ? model : null);
+}
+
+// ── Q10b(iii) Points allocation ─────────────────────────
+function runPointsSim() {
+  const ans = document.getElementById('ans-biii').value.toLowerCase();
+  const panel = document.getElementById('pts-sim');
+  const body  = document.getElementById('pts-sim-body');
+  panel.style.display = 'block';
+  
+  // Parse what the student wrote (simplified detection)
+  const has0 = /= ?0.*8|0.*8 point|num.*=.*0/.test(ans);
+  const has1 = /= ?1.*5|1.*5 point|num.*=.*1/.test(ans);
+  const has2 = /= ?2.*3|2.*3 point|num.*=.*2/.test(ans);
+  const has3 = /< ?24.*1|23.*1 point|else.*1/.test(ans);
+  
+  const rows = competitors.slice(0,7).map((c, i) => {
+    let pts, cls;
+    if (i === 0)      { pts = has0 ? 8 : '?'; cls = has0 ? 'pts-8' : 'sim-error'; }
+    else if (i === 1) { pts = has1 ? 5 : '?'; cls = has1 ? 'pts-5' : 'sim-error'; }
+    else if (i === 2) { pts = has2 ? 3 : '?'; cls = has2 ? 'pts-3' : 'sim-error'; }
+    else              { pts = has3 ? 1 : '?'; cls = has3 ? 'pts-1' : 'sim-error'; }
+    return `<tr><td>${c.forename} ${c.surname}</td><td>$numProcessed = ${i}</td><td class="${cls}">${pts}</td></tr>`;
+  }).join('');
+  
+  body.innerHTML = `<table class="sim-table">
+    <thead><tr><th>Competitor</th><th>$numProcessed</th><th>$points</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <p style="padding:12px;font-size:11px;color:var(--muted)">Showing first 7 competitors. Rows showing '?' indicate your pseudocode may not cover that case.</p>`;
+}
+
+function checkBiii() {
+  const ans = document.getElementById('ans-biii').value.toLowerCase();
+  const has8   = /0.*8|8.*point/.test(ans);
+  const has5   = /1.*5|5.*point/.test(ans);
+  const has3   = /2.*3|3.*point/.test(ans);
+  const has1   = /1 |else|otherwise/.test(ans);
+  const hasIf  = /if|elif|else if|elseif/.test(ans);
+  
+  const score = (has8 && has5 && has3 && has1 && hasIf) ? 2 : (has8 && has5 && hasIf) ? 1 : 0;
+  setMark('biii', score, 2);
+  
+  const type = score === 2 ? 'correct' : score === 1 ? 'partial' : 'wrong';
+  const model = `IF $numProcessed = 0 THEN
+    SET $points TO 8
+ELSE IF $numProcessed = 1 THEN
+    SET $points TO 5
+ELSE IF $numProcessed = 2 THEN
+    SET $points TO 3
+ELSE
+    SET $points TO 1
+END IF`;
+  showFeedback('biii', type, `${score}/2 marks`, '', score < 2 ? model : null);
+}
+
+// ── Q10b(iv) HTML table row ─────────────────────────────
+function runTableSim() {
+  const ans = document.getElementById('ans-biv').value;
+  const panel = document.getElementById('table-sim');
+  const body  = document.getElementById('table-sim-body');
+  panel.style.display = 'block';
+  
+  const hasForename = /forename/.test(ans);
+  const hasSurname  = /surname/.test(ans);
+  const hasTime     = /timetakenround1|time/i.test(ans);
+  const hasPoints   = /\$points|points/.test(ans);
+  const hasTr       = /<tr>|<\/tr>/.test(ans);
+  const hasTd       = /<td>|<\/td>/.test(ans);
+  
+  if (hasTr && hasTd && hasForename && hasSurname && hasTime && hasPoints) {
+    body.innerHTML = `<table class="sim-table">
+      <thead><tr><th>Competitor</th><th>Time Taken</th><th>Points</th></tr></thead>
+      <tbody>
+        <tr><td>Barbara Jones</td><td>02:32:24</td><td class="pts-8">8</td></tr>
+        <tr><td><span style="color:var(--muted);font-size:11px;">(your code would generate more rows...)</span></td><td></td><td></td></tr>
+      </tbody>
+    </table>
+    <p style="padding:12px;font-size:11px;color:var(--green)">✓ Your code structure looks correct!</p>`;
+  } else {
+    let missing = [];
+    if (!hasTr) missing.push('&lt;tr&gt; tags');
+    if (!hasTd) missing.push('&lt;td&gt; tags');
+    if (!hasForename) missing.push('$row[\'forename\']');
+    if (!hasSurname)  missing.push('$row[\'surname\']');
+    if (!hasTime)     missing.push('$row[\'timeTakenRound1\']');
+    if (!hasPoints)   missing.push('$points');
+    body.innerHTML = `<p style="padding:16px; color:var(--red)">✗ Missing: ${missing.join(', ')}</p>`;
+  }
+}
+
+function checkBiv() {
+  const ans = document.getElementById('ans-biv').value;
+  const hasForename = /forename/.test(ans);
+  const hasSurname  = /surname/.test(ans);
+  const hasTime     = /timetakenround1/i.test(ans);
+  const hasPoints   = /\$points/.test(ans);
+  const hasTr       = /<tr>/.test(ans);
+  const hasTd       = /<td>/.test(ans);
+  const hasEcho     = /echo/.test(ans);
+  
+  const allPresent = hasForename && hasSurname && hasTime && hasPoints && hasTr && hasTd && hasEcho;
+  const partial    = (hasForename || hasSurname) && hasEcho;
+  const score      = allPresent ? 2 : partial ? 1 : 0;
+  setMark('biv', score, 2);
+  
+  const type = score === 2 ? 'correct' : score === 1 ? 'partial' : 'wrong';
+  const model = `echo "<tr><td>" . $row['forename'] . " " . $row['surname'] . "</td><td>" . $row['timeTakenRound1'] . "</td><td>" . $points . "</td></tr>";`;
+  showFeedback('biv', type, `${score}/2 marks`, '', score < 2 ? model : null);
+}
+
+// ── Q10b(v) UPDATE query ────────────────────────────────
+function runUpdateSim() {
+  const ans = document.getElementById('ans-bv').value.trim();
+  const panel = document.getElementById('update-sim');
+  const body  = document.getElementById('update-sim-body');
+  panel.style.display = 'block';
+  
+  const hasUpdate     = /update/i.test(ans);
+  const hasTable      = /competitor/i.test(ans);
+  const hasSet        = /set/i.test(ans);
+  const hasField      = /competitorpoints/i.test(ans);
+  const hasVar        = /\$points/.test(ans);
+  
+  if (hasUpdate && hasTable && hasSet && hasField && hasVar) {
+    body.innerHTML = `<p class="sim-success">✓ Query valid. Simulating update for Barbara Jones (competitorID=1, $points=8)...</p>
+<br>
+<p style="color:var(--muted)">Full query executed:</p>
+<p style="color:var(--blue); margin-top:8px;">${escHtml(ans)} WHERE competitorID = '1'</p>
+<br>
+<p class="sim-success">✓ 1 row affected — competitorPoints updated to 8</p>`;
+  } else {
+    let msg = [];
+    if (!hasUpdate)  msg.push('Missing UPDATE keyword');
+    if (!hasTable)   msg.push('Missing table name (Competitor)');
+    if (!hasSet)     msg.push('Missing SET keyword');
+    if (!hasField)   msg.push('Missing field name (competitorPoints)');
+    if (!hasVar)     msg.push('Missing $points variable');
+    body.innerHTML = `<p class="sim-error">✗ ${msg.join(' · ')}</p>`;
+  }
+}
+
+function checkBv() {
+  const ans = document.getElementById('ans-bv').value.trim().toLowerCase();
+  const correct = /update\s+competitor\s+set\s+competitorpoints\s*=\s*['"]?\$points['"]?/.test(ans);
+  const partial  = /update.*competitor/.test(ans) && /set/.test(ans);
+  const score    = correct ? 1 : 0;
+  setMark('bv', score, 1);
+  
+  const type = score === 1 ? 'correct' : 'wrong';
+  const model = `UPDATE Competitor SET competitorPoints = '$points'`;
+  showFeedback('bv', type, `${score}/1 mark`, '', score < 1 ? model : null);
+}
+
+// ── HELPERS ────────────────────────────────────────────
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function resetAll() {
+  ['ai','aii','bi','bii','biii','biv','bv'].forEach(k => {
+    marks[k] = 0;
+    const card = document.getElementById('q-' + k);
+    card.classList.remove('answered','wrong');
+    document.getElementById('status-' + k).textContent = '○';
+    document.getElementById('fb-' + k).className = 'feedback';
+  });
+  document.getElementById('ans-ai').value = '';
+  document.getElementById('ans-aii').value = '';
+  document.getElementById('ans-bi').value = '';
+  document.getElementById('ans-bii-1').value = '';
+  document.getElementById('ans-bii-2').value = '';
+  document.getElementById('ans-biii').value = '';
+  document.getElementById('ans-biv').value = '';
+  document.getElementById('ans-bv').value = '';
+  ['db-server','db-user','db-password','db-name'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('final-summary').style.display = 'none';
+  updateScore();
+}
+
+// Tab key in textareas
+document.querySelectorAll('textarea').forEach(ta => {
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const s = ta.selectionStart, end = ta.selectionEnd;
+      ta.value = ta.value.substring(0,s) + '  ' + ta.value.substring(end);
+      ta.selectionStart = ta.selectionEnd = s + 2;
+    }
+  });
+});
+</script>
+</body>
+</html>
